@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
-import { RotateCcw, FileUp, X, Plus } from "lucide-react";
+import { FileUp, X, Plus, Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Pdf } from "@/components/ui/pdf";
 import { pdfRender, rgb } from "@/lib/pdf";
 
 import { Variable } from "@/components/variable";
+import { GenerateDialog } from "@/components/generate-dialog";
 
-const PDFScale = 1;
+const PDFScale = 1.5;
 const DefaultFile = { template: null, current: null };
 const DefaultVariable = {
   x: 0,
@@ -45,8 +45,8 @@ function App() {
   }, [file?.template, variables]);
 
   return (
-    <div className="h-full w-full flex flex-col">
-      <div className="flex flex-row items-start justify-between space-y-2 py-4 h-16 px-4">
+    <div className="h-screen flex flex-col overflow-hidden">
+      <header className="flex flex-row items-start justify-between space-y-2 py-4 h-16 px-4 border-b">
         <h1 className="text-lg font-semibold text-nowrap">Bulk PDF</h1>
         <div className="ml-auto flex w-full space-x-2 sm:justify-end">
           {file?.name ? (
@@ -54,81 +54,78 @@ function App() {
               <Input readOnly value={file.name} />
               <Button
                 variant="destructive"
-                size="icon"
+                size="sm"
                 onClick={() => setFile(DefaultFile)}
                 className="size-8"
               >
                 <X />
               </Button>
+              <GenerateDialog variables={variables} template={file.template}>
+                <Button variant="outline" size="sm" className="h-8">
+                  <Package />
+                  Generate
+                </Button>
+              </GenerateDialog>
             </div>
           ) : null}
         </div>
-      </div>
-      <Separator />
-      <div className="h-full py-6 px-4 grid items-stretch gap-6 grid-cols-[1fr_200px]">
-        <div className="mt-0 border-0 p-0">
-          <div className="flex h-full flex-col space-y-4">
-            {file?.current ? (
-              <Pdf
-                bytes={file.current}
-                className="flex-1 p-0"
-                scale={PDFScale}
-                onClick={
-                  isClicking
-                    ? ({ x, y }) => {
-                        const key = isClicking;
-                        setVariables((variables) => {
-                          const vs = [...variables];
-                          for (let i = 0; i < vs.length; i++) {
-                            const v = vs[i];
-                            if (v.key === key) {
-                              vs[i] = {
-                                ...vs[i],
-                                x,
-                                y,
-                              };
-                            }
-                          }
+      </header>
 
-                          return vs;
-                        });
-                        setIsClicking(null);
-                      }
-                    : undefined
-                }
-              />
-            ) : (
-              <div className="flex-1 p-4 border-input w-full rounded-md border bg-transparent shadow-xs flex items-center justify-center">
-                <div className="flex flex-col items-center space-y-2">
-                  <FileUp />
-                  <Input
-                    type="file"
-                    accept="application/pdf"
-                    onChange={async (e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        const bytes = await file.arrayBuffer();
-                        setFile({
-                          name: file.name,
-                          template: bytes,
-                          current: bytes,
-                        });
-                      }
-                    }}
-                  />
-                </div>
+      <main className="flex flex-1 overflow-hidden m-4 mr-0 space-x-4">
+        <div className="flex-1">
+          {file?.current ? (
+            <Pdf
+              bytes={file.current}
+              className="h-full w-full"
+              scale={PDFScale}
+              onClick={
+                isClicking
+                  ? ({ x, y }) => {
+                      const key = isClicking;
+                      setVariables((variables) => {
+                        const vs = [...variables];
+                        for (let i = 0; i < vs.length; i++) {
+                          const v = vs[i];
+                          if (v.key === key) {
+                            vs[i] = {
+                              ...vs[i],
+                              x,
+                              y,
+                            };
+                          }
+                        }
+
+                        return vs;
+                      });
+                      setIsClicking(null);
+                    }
+                  : undefined
+              }
+            />
+          ) : (
+            <div className="w-full h-full p-4 border-input rounded-md border bg-transparent shadow-xs flex items-center justify-center">
+              <div className="flex flex-col items-center space-y-2">
+                <FileUp />
+                <Input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={async (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      const bytes = await file.arrayBuffer();
+                      setFile({
+                        name: file.name,
+                        template: bytes,
+                        current: bytes,
+                      });
+                    }
+                  }}
+                />
               </div>
-            )}
-            <div className="flex items-center space-x-2">
-              <Button>Submit</Button>
-              <Button variant="secondary">
-                <span className="sr-only">Show history</span>
-                <RotateCcw />
-              </Button>
             </div>
-          </div>
+          )}
         </div>
-        <div className="flex-col space-y-4 flex">
+        <div className="w-[250px] overflow-y-auto space-y-2 pr-4 pb-4">
           <div className="flex justify-between">
             <Label className="text-lg">Variables</Label>
             <Button
@@ -186,7 +183,7 @@ function App() {
             />
           ))}
         </div>
-      </div>
+      </main>
     </div>
   );
 }

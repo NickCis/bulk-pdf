@@ -41,7 +41,7 @@ export function Pdf({ bytes, scale = 1, className, onClick, ...props }) {
     <canvas
       ref={ref}
       className={cn(
-        "border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 flex field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+        "border-input dark:bg-input/30 flex w-full rounded-md border bg-transparent px-3 py-2 shadow-xs transition-[color,box-shadow]",
         className,
       )}
       onClick={
@@ -50,11 +50,12 @@ export function Pdf({ bytes, scale = 1, className, onClick, ...props }) {
               const canvas = ref.current;
               const rect = canvas.getBoundingClientRect();
               const x = Math.round(
-                (canvas.width * (e.clientX - rect.left)) / rect.width,
+                (canvas.width * (e.clientX - rect.left)) / rect.width / scale,
               );
               const y = Math.round(
-                canvas.height -
-                  (canvas.height * (e.clientY - rect.top)) / rect.height,
+                (canvas.height -
+                  (canvas.height * (e.clientY - rect.top)) / rect.height) /
+                  scale,
               );
               onClick({ x, y }, e, canvas);
             }

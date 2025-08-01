@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Color from "color";
 import {
   X,
   AlignLeft,
@@ -283,15 +284,11 @@ export function Variable({
               >
                 <ColorPicker
                   className="max-w-sm rounded-md border bg-background p-4 shadow-sm"
-                  onChange={(color) => {
-                    console.log("onChange - color", color);
+                  onChange={(hex) => {
+                    const color = Color(hex).rgb().object();
                     onChange({
                       key: "color",
-                      value: rgb(
-                        color[0] / 255,
-                        color[1] / 255,
-                        color[2] / 255,
-                      ),
+                      value: rgb(color.r / 255, color.g / 255, color.b / 255),
                     });
                   }}
                   value={toRGBString(variable.color)}
