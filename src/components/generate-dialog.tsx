@@ -75,7 +75,7 @@ function Content({ variables, template }: ContentProps) {
     <DialogContent className="sm:max-w-[80%] h-[90%]">
       <form
         onSubmit={formik.handleSubmit}
-        className="h-full w-full flex flex-col"
+        className="h-full w-full flex flex-col min-h-0"
       >
         <DialogHeader>
           <DialogTitle>Generate PDFs</DialogTitle>

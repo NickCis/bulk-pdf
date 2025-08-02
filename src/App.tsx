@@ -89,7 +89,7 @@ function App() {
           {file?.current ? (
             <Pdf
               bytes={file.current}
-              className="h-full w-full"
+              className="h-full w-full object-contain"
               scale={PDFScale}
               onClick={
                 isClicking
