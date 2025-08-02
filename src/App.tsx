@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Pdf } from "@/components/ui/pdf";
-import { pdfRender, rgb } from "@/lib/pdf";
+import { pdfRender, rgb, type TextVariable } from "@/lib/pdf";
 
 import { Variable, type VariableObject } from "@/components/variable";
 import { GenerateDialog } from "@/components/generate-dialog";
@@ -40,12 +40,15 @@ function App() {
       if (!file.template) return;
       const current = await pdfRender(
         file.template,
-        (variables || [])
-          .filter(({ x, y, size }) => x && y && size)
-          .map((v, i) => ({
-            ...v,
-            text: `Variable ${i + 1}`,
-          })),
+        (variables || []).reduce<TextVariable[]>((vs, v, i) => {
+          if (v.x && v.y && v.size) {
+            vs.push({
+              ...v,
+              text: `Variable ${i + 1}`,
+            });
+          }
+          return vs;
+        }, []),
       );
       if (cancel) return;
       setFile((f) => ({ ...f, current }));
@@ -89,7 +92,7 @@ function App() {
           {file?.current ? (
             <Pdf
               bytes={file.current}
-              className="h-full w-full object-contain"
+              className="h-full w-full"
               scale={PDFScale}
               onClick={
                 isClicking

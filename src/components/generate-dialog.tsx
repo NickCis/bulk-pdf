@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { pdfRender } from "@/lib/pdf";
+import { pdfRender, type TextVariable } from "@/lib/pdf";
 import { type VariableObject } from "./variable";
 
 interface ContentProps {
@@ -47,12 +47,15 @@ function Content({ variables, template }: ContentProps) {
         const row = rows[i];
         const bytes = await pdfRender(
           template,
-          (variables || [])
-            .filter(({ x, y, size }, i) => row[i] && x && y && size)
-            .map((v, i) => ({
-              ...v,
-              text: row[i],
-            })),
+          (variables || []).reduce<TextVariable[]>((vs, v, i) => {
+            if (row[i] && v.x && v.y && v.size) {
+              vs.push({
+                ...v,
+                text: row[i],
+              });
+            }
+            return vs;
+          }, []),
         );
         let filename = (values.filename || "1.pdf").replace("{index}", `${i}`);
         for (let ii = 0; ii < row.length; ii++) {
