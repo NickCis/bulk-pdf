@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ComponentProps } from "react";
 import Color from "color";
 import {
   X,
@@ -39,18 +39,20 @@ import {
 import { FontsByName } from "@/lib/pdf";
 import { cn } from "@/lib/utils";
 import {
-  ColorPicker,
+  HexColorPicker as ColorPicker,
   ColorPickerFormat,
   ColorPickerHue,
   ColorPickerOutput,
   ColorPickerSelection,
 } from "@/components/ui/shadcn-io/color-picker";
-import { rgb } from "@/lib/pdf";
+import { rgb, type TextVariable } from "@/lib/pdf";
+
+export type VariableObject = Omit<TextVariable, "text">;
 
 const Fonts = Object.keys(FontsByName);
 Fonts.sort((a, b) => a.localeCompare(b));
 
-function AlignItem({ className, ...props }) {
+function AlignItem({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="tabs-trigger"
@@ -63,14 +65,30 @@ function AlignItem({ className, ...props }) {
   );
 }
 
-function toRGBString(color) {
+function toRGBString(color: ReturnType<typeof rgb>): string {
   if (color) {
-    return `#${[color.red * 255, color.green * 255, color.blue * 255]
+    return `#${[
+      (color.red as number) * 255,
+      color.green * 255,
+      color.blue * 255,
+    ]
       .map((n) => Math.round(n).toString(16).padStart(2, "0"))
       .join("")}`;
   }
 
   return "#000000";
+}
+
+export interface VariableProps {
+  index: number | string;
+  variable: VariableObject;
+  onChange: <K extends keyof VariableObject>(ev: {
+    key: K;
+    value: VariableObject[K];
+  }) => void;
+  onDelete: () => void;
+  className?: string;
+  onPosition: () => void;
 }
 
 export function Variable({
@@ -80,7 +98,7 @@ export function Variable({
   onDelete,
   className,
   onPosition,
-}) {
+}: VariableProps) {
   const [open, setOpen] = useState<"font-face" | "font-color" | null>(null);
 
   return (
@@ -166,7 +184,7 @@ export function Variable({
                   const value = parseFloat(ev.target.value);
                   onChange({
                     key: "x",
-                    value: isNaN(value) ? "" : value,
+                    value: isNaN(value) ? 0 : value,
                   });
                 }}
               />
@@ -178,7 +196,7 @@ export function Variable({
                   const value = parseFloat(ev.target.value);
                   onChange({
                     key: "y",
-                    value: isNaN(value) ? "" : value,
+                    value: isNaN(value) ? 0 : value,
                   });
                 }}
               />
@@ -212,7 +230,7 @@ export function Variable({
                           key={font}
                           onSelect={() => {
                             onChange({ key: "font", value: font });
-                            setOpen(false);
+                            setOpen(null);
                           }}
                           data-selected={selected ? "true" : undefined}
                           className="data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground"
@@ -239,7 +257,7 @@ export function Variable({
                 const value = parseFloat(ev.target.value);
                 onChange({
                   key: "size",
-                  value: isNaN(value) ? "" : value,
+                  value: isNaN(value) ? 0 : value,
                 });
               }}
               type="number"
@@ -262,7 +280,6 @@ export function Variable({
                   {variable.color ? (
                     <>
                       <div
-                        key={1}
                         className="h-[12px] w-[12px]"
                         style={{
                           background: toRGBString(variable.color),

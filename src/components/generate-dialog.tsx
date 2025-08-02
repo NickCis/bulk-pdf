@@ -1,3 +1,4 @@
+import type { PropsWithChildren } from "react";
 import { useFormik } from "formik";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
@@ -15,8 +16,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { pdfRender } from "@/lib/pdf";
+import { type VariableObject } from "./variable";
 
-function Content({ variables, template }) {
+interface ContentProps {
+  template: ArrayBuffer;
+  variables: VariableObject[];
+}
+
+function Content({ variables, template }: ContentProps) {
   const formik = useFormik({
     initialValues: {
       filename: "{0}.pdf",
@@ -33,7 +40,6 @@ function Content({ variables, template }) {
             ?.map?.((v) => v?.trim?.()),
         )
         .filter((r) => r?.length);
-      console.log("rows", rows);
 
       const zip = new JSZip();
 
@@ -48,7 +54,7 @@ function Content({ variables, template }) {
               text: row[i],
             })),
         );
-        let filename = (values.filename || "1.pdf").replace("{index}", i);
+        let filename = (values.filename || "1.pdf").replace("{index}", `${i}`);
         for (let ii = 0; ii < row.length; ii++) {
           const value = (row[ii] || "")
             .normalize("NFD")
@@ -100,7 +106,11 @@ function Content({ variables, template }) {
     </DialogContent>
   );
 }
-export function GenerateDialog({ children, variables, template }) {
+export function GenerateDialog({
+  children,
+  variables,
+  template,
+}: PropsWithChildren<ContentProps>) {
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>

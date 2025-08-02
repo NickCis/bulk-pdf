@@ -45,23 +45,24 @@ function useColorPicker() {
   return context;
 }
 
-export type ColorPickerProps = HTMLAttributes<HTMLDivElement> & {
-  value?: string;
-  defaultValue?: string;
-  onChange?: (value: string) => void;
+export type ColorPickerProps<T> = Omit<
+  HTMLAttributes<HTMLDivElement>,
+  "onChange" | "value" | "defaultValue"
+> & {
+  value?: T;
+  defaultValue?: T;
+  onChange?: (value: T) => void;
 };
 
-export function ColorPicker({
+export function HexColorPicker({
   value: controlledValue,
   defaultValue = "#000000",
   onChange,
-  className,
   ...props
-}: ColorPickerProps) {
-  const [color, setColor] = useState(() =>
+}: ColorPickerProps<string>) {
+  const [color, setColor] = useState<ColorInstance>(() =>
     Color(controlledValue || defaultValue),
   );
-  const [mode, setMode] = useState("hex");
 
   useEffect(() => {
     if (controlledValue === undefined) return;
@@ -72,13 +73,36 @@ export function ColorPicker({
   }, [controlledValue]);
 
   return (
+    <ColorPicker
+      value={color}
+      onChange={(c) => {
+        setColor(c);
+        if (onChange && c.hex() !== color.hex()) onChange(c.hex());
+      }}
+      {...props}
+    />
+  );
+}
+
+export function ColorPicker({
+  value: controlledValue,
+  defaultValue = Color("#000000"),
+  onChange,
+  className,
+  ...props
+}: ColorPickerProps<ColorInstance>) {
+  const isControlled = controlledValue !== undefined && onChange;
+  const [uncontrolledValue, setUncontrolledValue] = useState(defaultValue);
+  const color = isControlled ? controlledValue : uncontrolledValue;
+  const [mode, setMode] = useState("hex");
+
+  return (
     <ColorPickerContext.Provider
       value={{
         color,
-        onChange: (color: ColorInstance) => {
-          setColor(color);
-          if (onChange) onChange(color);
-        },
+        onChange: isControlled
+          ? onChange
+          : (color: ColorInstance) => setUncontrolledValue(color),
         mode,
         setMode,
       }}
@@ -118,11 +142,7 @@ export const ColorPickerSelection = memo(
       const topLightness = x < 0.01 ? 100 : 50 + 50 * (1 - x);
       const lightness = topLightness * (1 - y);
 
-      onChange(
-        color
-          .saturationl(x * 100)
-          .lightness(lightness)
-      );
+      onChange(color.saturationl(x * 100).lightness(lightness));
     };
 
     return (
@@ -243,14 +263,21 @@ export function ColorPickerOutput({ ...props }: ColorPickerOutputProps) {
 
 export type ColorPickerFormatProps = HTMLAttributes<HTMLDivElement>;
 
-function HexInput({ value, onChange, ...props }) {
+function HexInput({
+  value,
+  onChange,
+  ...props
+}: { value: string; onChange: (c: ColorInstance) => void } & Omit<
+  ComponentProps<typeof Input>,
+  "value" | "onChange"
+>) {
   const [v, setV] = useState(value);
 
   useEffect(() => {
     setV((v) => (Color(v).hex() !== Color(value).hex() ? value : v));
   }, [value]);
 
-  const handleChange = (v) => {
+  const handleChange = (v: string) => {
     try {
       onChange(Color(v));
     } catch (e) {} // eslint-disable-line @typescript-eslint/no-unused-vars, no-empty
@@ -325,9 +352,13 @@ export function ColorPickerFormat({
             type="text"
             value={value}
             onChange={(e) => {
-              const value = parseInt(e.target.value || 0, 10);
+              const value = parseInt(e.target.value || "0", 10);
               if (isNaN(value)) return;
-              const method = ["red", "green", "blue"][index];
+              const method = [
+                "red" as const,
+                "green" as const,
+                "blue" as const,
+              ][index];
               onChange(color[method](value));
             }}
           />
@@ -362,9 +393,13 @@ export function ColorPickerFormat({
             type="text"
             value={value}
             onChange={(e) => {
-              const value = parseInt(e.target.value || 0, 10);
+              const value = parseInt(e.target.value || "0", 10);
               if (isNaN(value)) return;
-              const method = ["hue", "saturationl", "lightness"][index];
+              const method = [
+                "hue" as const,
+                "saturationl" as const,
+                "lightness" as const,
+              ][index];
               onChange(color[method](value));
             }}
           />

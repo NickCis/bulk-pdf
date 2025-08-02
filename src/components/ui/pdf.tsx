@@ -1,34 +1,51 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, type CanvasHTMLAttributes } from "react";
 import { getDocument } from "pdfjs-dist";
 
 import { arrayBufferCopy } from "@/lib/array-buffer";
 import { cn } from "@/lib/utils";
 
-export function Pdf({ bytes, scale = 1, className, onClick, ...props }) {
-  const ref = useRef(null);
+export interface PdfProps {
+  bytes: ArrayBuffer;
+  scale?: number;
+  className?: string;
+  onClick?: (position: { x: number; y: number }) => void;
+}
+
+export function Pdf({
+  bytes,
+  scale = 1,
+  className,
+  onClick,
+  ...props
+}: PdfProps & Omit<CanvasHTMLAttributes<HTMLCanvasElement>, "onClick">) {
+  const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (!bytes || !ref.current) return;
     let cancel = false;
     const copy = arrayBufferCopy(bytes);
     const render = async () => {
+      const canvas = ref.current;
+      if (!canvas) return;
+
+      const context = canvas.getContext("2d");
+      if (!context) return;
+
       const pdf = await getDocument({ data: copy }).promise;
       if (cancel) return;
+
       const page = await pdf.getPage(1);
       if (cancel) return;
-      const viewport = page.getViewport({ scale });
 
-      const canvas = ref.current;
-      const context = canvas.getContext("2d");
+      const viewport = page.getViewport({ scale });
       canvas.width = viewport.width;
       canvas.height = viewport.height;
 
-      const renderContext = {
+      await page.render({
+        canvas,
         canvasContext: context,
         viewport,
-      };
-
-      await page.render(renderContext).promise;
+      }).promise;
     };
 
     render();
@@ -48,6 +65,8 @@ export function Pdf({ bytes, scale = 1, className, onClick, ...props }) {
         onClick
           ? (e) => {
               const canvas = ref.current;
+              if (!canvas) return;
+
               const rect = canvas.getBoundingClientRect();
               const x = Math.round(
                 (canvas.width * (e.clientX - rect.left)) / rect.width / scale,
@@ -57,7 +76,7 @@ export function Pdf({ bytes, scale = 1, className, onClick, ...props }) {
                   (canvas.height * (e.clientY - rect.top)) / rect.height) /
                   scale,
               );
-              onClick({ x, y }, e, canvas);
+              onClick({ x, y });
             }
           : undefined
       }

@@ -6,12 +6,20 @@ import { Label } from "@/components/ui/label";
 import { Pdf } from "@/components/ui/pdf";
 import { pdfRender, rgb } from "@/lib/pdf";
 
-import { Variable } from "@/components/variable";
+import { Variable, type VariableObject } from "@/components/variable";
 import { GenerateDialog } from "@/components/generate-dialog";
 
 const PDFScale = 1.5;
-const DefaultFile = { template: null, current: null };
-const DefaultVariable = {
+interface FileState {
+  name?: string;
+  current: ArrayBuffer | null;
+  template: ArrayBuffer | null;
+}
+const DefaultFile: FileState = { template: null, current: null };
+
+type VariableObjectWithKey = VariableObject & { key: string | number };
+const DefaultVariable: VariableObjectWithKey = {
+  key: "default",
   x: 0,
   y: 0,
   font: "Helvetica",
@@ -21,12 +29,15 @@ const DefaultVariable = {
 };
 function App() {
   const [file, setFile] = useState(DefaultFile);
-  const [variables, setVariables] = useState([]);
-  const [isClicking, setIsClicking] = useState();
+  const [variables, setVariables] = useState<VariableObjectWithKey[]>([]);
+  const [isClicking, setIsClicking] = useState<
+    VariableObjectWithKey["key"] | null
+  >(null);
   useEffect(() => {
     if (!file.template) return;
     let cancel = false;
     (async () => {
+      if (!file.template) return;
       const current = await pdfRender(
         file.template,
         (variables || [])
@@ -60,12 +71,14 @@ function App() {
               >
                 <X />
               </Button>
-              <GenerateDialog variables={variables} template={file.template}>
-                <Button variant="outline" size="sm" className="h-8">
-                  <Package />
-                  Generate
-                </Button>
-              </GenerateDialog>
+              {file.template ? (
+                <GenerateDialog variables={variables} template={file.template}>
+                  <Button variant="outline" size="sm" className="h-8">
+                    <Package />
+                    Generate
+                  </Button>
+                </GenerateDialog>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -110,15 +123,16 @@ function App() {
                   type="file"
                   accept="application/pdf"
                   onChange={async (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      const bytes = await file.arrayBuffer();
-                      setFile({
-                        name: file.name,
-                        template: bytes,
-                        current: bytes,
-                      });
-                    }
+                    const file = e.target?.files?.[0];
+                    if (!file) return;
+                    const bytes = await file.arrayBuffer();
+                    if (!bytes) return;
+
+                    setFile({
+                      name: file.name,
+                      template: bytes,
+                      current: bytes,
+                    });
                   }}
                 />
               </div>
