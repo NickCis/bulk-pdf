@@ -40,6 +40,12 @@ export const FontsByName: Record<string, string | ArrayBuffer> = {
   AlojaLight,
 };
 
+import("@/fonts/fonts.json").then(({ default: fonts }) => {
+  for (const [key, value] of Object.entries(fonts)) {
+    if (!(key in FontsByName)) FontsByName[key] = value;
+  }
+});
+
 async function downloadFont(url: string): Promise<ArrayBuffer | string> {
   const res = await fetch(url);
   if (!res.ok) {

@@ -1,4 +1,4 @@
-import { useState, type ComponentProps } from "react";
+import { useMemo, useState, type ComponentProps } from "react";
 import Color from "color";
 import {
   X,
@@ -9,6 +9,7 @@ import {
   ChevronsUpDown,
   MousePointerClick,
   Pipette,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,9 +49,6 @@ import {
 import { rgb, type TextVariable } from "@/lib/pdf";
 
 export type VariableObject = Omit<TextVariable, "text">;
-
-const Fonts = Object.keys(FontsByName);
-Fonts.sort((a, b) => a.localeCompare(b));
 
 function AlignItem({ className, ...props }: ComponentProps<"div">) {
   return (
@@ -100,6 +98,11 @@ export function Variable({
   onPosition,
 }: VariableProps) {
   const [open, setOpen] = useState<"font-face" | "font-color" | null>(null);
+  const fonts = useMemo(() => {
+    const fonts = Object.keys(FontsByName);
+    fonts.sort((a, b) => a.localeCompare(b));
+    return fonts;
+  }, []);
 
   return (
     <Card className={cn("w-full py-4 gap-2", className)}>
@@ -203,7 +206,18 @@ export function Variable({
             </div>
           </div>
           <div className="grid gap-2">
-            <Label>Font Face</Label>
+            <div className="flex space-x-2 justify-between">
+              <Label>Font Face</Label>
+              <Button size="icon" variant="ghost" className="size-8" asChild>
+                <a
+                  href="https://fonts.google.com/"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  <Search />
+                </a>
+              </Button>
+            </div>
             <Popover
               open={open === "font-face"}
               onOpenChange={(o) => setOpen(o ? "font-face" : null)}
@@ -223,7 +237,7 @@ export function Variable({
                 <Command loop>
                   <CommandList className="h-[var(--cmdk-list-height)] max-h-[400px]">
                     <CommandInput placeholder="Select Font..." />
-                    {Fonts.map((font) => {
+                    {fonts.map((font) => {
                       const selected = font === variable.font;
                       return (
                         <CommandItem

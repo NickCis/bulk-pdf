@@ -317,7 +317,7 @@ export function ColorPickerFormat({
         {...props}
       >
         <HexInput
-          className="h-8 bg-secondary px-2 text-xs shadow-none"
+          className="h-8 px-2 text-xs shadow-none"
           type="text"
           value={hex}
           onChange={onChange}
@@ -343,7 +343,7 @@ export function ColorPickerFormat({
         {rgb.map((value, index) => (
           <Input
             className={cn(
-              "h-8 bg-secondary px-2 text-xs shadow-none",
+              "h-8 px-2 text-xs shadow-none",
               index && "rounded-l-none",
               index < rgb.length - 1 && "rounded-r-none",
               className,
@@ -384,7 +384,7 @@ export function ColorPickerFormat({
         {hsl.map((value, index) => (
           <Input
             className={cn(
-              "h-8 bg-secondary px-2 text-xs shadow-none",
+              "h-8 px-2 text-xs shadow-none",
               index && "rounded-l-none",
               index < hsl.length - 1 && "rounded-r-none",
               className,
