@@ -14,11 +14,21 @@ import { arrayBufferCopy } from "./array-buffer";
 export interface TextVariable {
   x: number;
   y: number;
+  w?: number;
+  h?: number;
   font: string;
   size: number;
+  contain?: boolean;
   alignment: "left" | "center" | "right";
   color: ReturnType<typeof rgb>;
   text: string;
+}
+
+export interface DrawnVariable {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
 const FontCacheDefault = Symbol("default");
@@ -59,16 +69,19 @@ async function downloadFont(url: string): Promise<ArrayBuffer | string> {
 export async function pdfRender(
   bytes: ArrayBuffer,
   texts: TextVariable[],
-): Promise<ArrayBuffer> {
+): Promise<{ document: ArrayBuffer; variables: DrawnVariable[] }> {
   const copy = arrayBufferCopy(bytes);
   const doc = await PDFDocument.load(copy);
   doc.registerFontkit(fontkit);
+  doc.setProducer("bulk-pdf ( https://bulk-pdf.vercel.app/ )");
+  doc.setCreator("bulk-pdf ( https://bulk-pdf.vercel.app/ )");
 
   const pages = doc.getPages();
   const page = pages[0];
   const height = page.getHeight();
   const width = page.getWidth();
   const fontCache: Record<string | symbol, PDFFont> = {};
+  const variables = [];
 
   for (const { text, font, alignment, ...rest } of texts) {
     const opts: {
@@ -97,8 +110,17 @@ export async function pdfRender(
       opts.font = fontCache[FontCacheDefault];
     }
 
+    if (rest.contain && rest.w && rest.h) {
+      let size = opts.font.sizeAtHeight(rest.h);
+      while (size > 0 && opts.font.widthOfTextAtSize(text, size) > rest.w) {
+        size -= 0.2;
+      }
+
+      if (size) opts.size = size;
+    }
+
+    const textWidth = opts.font.widthOfTextAtSize(text, opts.size);
     if (alignment && alignment !== "left") {
-      const textWidth = opts.font.widthOfTextAtSize(text, opts.size);
       switch (alignment) {
         case "center":
           opts.x = opts.x - textWidth / 2;
@@ -110,10 +132,114 @@ export async function pdfRender(
       }
     }
 
+    variables.push({
+      x: opts.x,
+      y: opts.y,
+      w: textWidth,
+      h: opts.font.heightAtSize(opts.size),
+    });
+
     page.drawText(text, opts);
   }
 
-  return await doc.save();
+  return {
+    document: await doc.save(),
+    variables,
+  };
+}
+
+export function toPdfCoords(
+  canvas: { width: number; height: number },
+  rect: { width: number; height: number },
+  { x, y, scale = 1 }: { x: number; y: number; scale: number },
+): { x: number; y: number } | null {
+  const canvasAspect = canvas.width / canvas.height;
+  const rectAspect = rect.width / rect.height;
+  let drawnWidth, drawnHeight, offsetX, offsetY;
+
+  if (canvasAspect > rectAspect) {
+    drawnWidth = rect.width;
+    drawnHeight = rect.width / canvasAspect;
+    offsetX = 0;
+    offsetY = (rect.height - drawnHeight) / 2;
+  } else {
+    drawnHeight = rect.height;
+    drawnWidth = rect.height * canvasAspect;
+    offsetX = (rect.width - drawnWidth) / 2;
+    offsetY = 0;
+  }
+
+  const xInDrawn = x - offsetX;
+  const yInDrawn = y - offsetY;
+
+  if (
+    xInDrawn < 0 ||
+    yInDrawn < 0 ||
+    xInDrawn > drawnWidth ||
+    yInDrawn > drawnHeight
+  )
+    return null;
+
+  const scaleX = canvas.width / drawnWidth / scale;
+  const scaleY = canvas.height / drawnHeight / scale;
+
+  const pdfX = xInDrawn * scaleX;
+  const pdfY = (drawnHeight - yInDrawn) * scaleY;
+
+  return {
+    x: pdfX,
+    y: pdfY,
+  };
+}
+
+export function fromPdfCoords(
+  canvas: { width: number; height: number },
+  rect: { width: number; height: number },
+  {
+    x: pdfX,
+    y: pdfY,
+    scale = 1,
+    unsafe,
+  }: { x: number; y: number; scale: number; unsafe?: boolean },
+): { x: number; y: number } | null {
+  const canvasAspect = canvas.width / canvas.height;
+  const rectAspect = rect.width / rect.height;
+  let drawnWidth, drawnHeight, offsetX, offsetY;
+
+  if (canvasAspect > rectAspect) {
+    drawnWidth = rect.width;
+    drawnHeight = rect.width / canvasAspect;
+    offsetX = 0;
+    offsetY = (rect.height - drawnHeight) / 2;
+  } else {
+    drawnHeight = rect.height;
+    drawnWidth = rect.height * canvasAspect;
+    offsetX = (rect.width - drawnWidth) / 2;
+    offsetY = 0;
+  }
+
+  const scaleX = canvas.width / drawnWidth / scale;
+  const scaleY = canvas.height / drawnHeight / scale;
+
+  const xInDrawn = pdfX / scaleX;
+  const yInDrawn = drawnHeight - pdfY / scaleY;
+
+  if (
+    !unsafe &&
+    (xInDrawn < 0 ||
+      yInDrawn < 0 ||
+      xInDrawn > drawnWidth ||
+      yInDrawn > drawnHeight)
+  )
+    return null;
+
+  const x = xInDrawn + offsetX;
+  const y = yInDrawn + offsetY;
+
+  return {
+    x,
+    y,
+  };
 }
 
 export { rgb };

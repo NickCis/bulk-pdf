@@ -204,6 +204,7 @@ export function ColorPickerHue({ className, ...props }: ColorPickerHueProps) {
   );
 }
 
+const isEyeDropperApiAvailable = (window as any).EyeDropper !== undefined; // eslint-disable-line @typescript-eslint/no-explicit-any
 export type ColorPickerEyeDropperProps = ComponentProps<typeof Button>;
 
 export function ColorPickerEyeDropper({
@@ -212,22 +213,22 @@ export function ColorPickerEyeDropper({
 }: ColorPickerEyeDropperProps) {
   const { onChange } = useColorPicker();
 
-  const handleEyeDropper = async () => {
-    try {
-      // @ts-expect-error - EyeDropper API is experimental
-      const eyeDropper = new EyeDropper();
-      const result = await eyeDropper.open();
-      const color = Color(result.sRGBHex);
-      onChange(color);
-    } catch (error) {
-      console.error("EyeDropper failed:", error);
-    }
-  };
+  if (!isEyeDropperApiAvailable) return null;
 
   return (
     <Button
       className={cn("shrink-0 text-muted-foreground", className)}
-      onClick={handleEyeDropper}
+      onClick={async () => {
+        try {
+          // @ts-expect-error - EyeDropper API is experimental
+          const eyeDropper = new EyeDropper();
+          const result = await eyeDropper.open();
+          const color = Color(result.sRGBHex);
+          onChange(color);
+        } catch (error) {
+          console.error("EyeDropper failed:", error);
+        }
+      }}
       size="icon"
       variant="outline"
       type="button"

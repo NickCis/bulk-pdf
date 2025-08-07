@@ -2,6 +2,7 @@ import type { PropsWithChildren } from "react";
 import { useFormik } from "formik";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
+import { Loader2Icon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,15 +22,25 @@ import { type VariableObject } from "./variable";
 interface ContentProps {
   template: ArrayBuffer;
   variables: VariableObject[];
+  name?: string;
 }
 
-function Content({ variables, template }: ContentProps) {
+function normalizeForPath(str: string): string {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9\-_]/g, "");
+}
+
+function Content({ variables, template, name }: ContentProps) {
   const formik = useFormik({
     initialValues: {
-      filename: "{0}.pdf",
+      filename: "{variable-1}.pdf",
       data: "",
     },
     onSubmit: async (values) => {
+      await new Promise((rs) => setTimeout(rs, 5000));
       if (!template) return;
       const rows = values.data
         .split("\n")
@@ -44,38 +55,45 @@ function Content({ variables, template }: ContentProps) {
       const zip = new JSZip();
 
       for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        const bytes = await pdfRender(
-          template,
-          (variables || []).reduce<TextVariable[]>((vs, v, i) => {
-            if (row[i] && v.x && v.y && v.size) {
-              vs.push({
-                ...v,
-                text: row[i],
-              });
-            }
-            return vs;
-          }, []),
-        );
-        let filename = (values.filename || "1.pdf").replace("{index}", `${i}`);
-        for (let ii = 0; ii < row.length; ii++) {
-          const value = (row[ii] || "")
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/\s+/g, "-")
-            .replace(/[^a-zA-Z0-9\-_]/g, "");
-          filename = filename.replace(`{${ii}}`, value || "");
+        try {
+          const row = rows[i];
+          const { document: bytes } = await pdfRender(
+            template,
+            (variables || []).reduce<TextVariable[]>((vs, v, i) => {
+              if (row[i] && v.x && v.y && v.size) {
+                vs.push({
+                  ...v,
+                  text: row[i],
+                });
+              }
+              return vs;
+            }, []),
+          );
+          let filename = (values.filename || "1.pdf").replace(
+            "{index}",
+            `${i + 1}`,
+          );
+          for (let ii = 0; ii < row.length; ii++) {
+            const value = normalizeForPath(row[ii] || "");
+            filename = filename.replace(`{variable-${ii + 1}}`, value || "");
+          }
+          zip.file(filename, bytes);
+        } catch (e) {
+          console.error(e);
         }
-        zip.file(filename, bytes);
       }
 
       const zipBlob = await zip.generateAsync({ type: "blob" });
-      saveAs(zipBlob, "files.zip");
+      const zipName = `${normalizeForPath(name?.split?.(".")?.[0] || "files")}.zip`;
+      saveAs(zipBlob, zipName);
     },
   });
 
   return (
-    <DialogContent className="sm:max-w-[80%] h-[90%]">
+    <DialogContent
+      className="sm:max-w-[80%] h-[90%]"
+      aria-describedby={undefined}
+    >
       <form
         onSubmit={formik.handleSubmit}
         className="h-full w-full flex flex-col min-h-0"
@@ -87,6 +105,7 @@ function Content({ variables, template }: ContentProps) {
           <div className="grid gap-3">
             <Label>File Name</Label>
             <Input
+              disabled={formik.isSubmitting}
               name="filename"
               onChange={formik.handleChange}
               value={formik.values.filename}
@@ -95,6 +114,7 @@ function Content({ variables, template }: ContentProps) {
           <div className="flex flex-col space-y-3 flex-1">
             <Label>Data</Label>
             <Textarea
+              disabled={formik.isSubmitting}
               className="flex-1"
               name="data"
               onChange={formik.handleChange}
@@ -103,21 +123,32 @@ function Content({ variables, template }: ContentProps) {
           </div>
         </div>
         <DialogFooter>
-          <Button type="submit">Generate</Button>
+          <Button type="submit" disabled={formik.isSubmitting}>
+            {formik.isSubmitting ? (
+              <>
+                <Loader2Icon className="animate-spin" />
+                Loading...
+              </>
+            ) : (
+              "Generate"
+            )}
+          </Button>
         </DialogFooter>
       </form>
     </DialogContent>
   );
 }
+
 export function GenerateDialog({
   children,
   variables,
   template,
+  name,
 }: PropsWithChildren<ContentProps>) {
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <Content variables={variables} template={template} />
+      <Content variables={variables} template={template} name={name} />
     </Dialog>
   );
 }

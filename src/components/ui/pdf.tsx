@@ -1,14 +1,21 @@
-import { useRef, useEffect, type CanvasHTMLAttributes } from "react";
+import {
+  useRef,
+  useEffect,
+  type RefObject,
+  type CanvasHTMLAttributes,
+} from "react";
 import { getDocument } from "pdfjs-dist";
 
 import { arrayBufferCopy } from "@/lib/array-buffer";
 import { cn } from "@/lib/utils";
+import { toPdfCoords } from "@/lib/pdf";
 
 export interface PdfProps {
   bytes: ArrayBuffer;
   scale?: number;
   className?: string;
   onClick?: (position: { x: number; y: number }) => void;
+  ref?: RefObject<HTMLCanvasElement | null>;
 }
 
 export function Pdf({
@@ -16,12 +23,15 @@ export function Pdf({
   scale = 1,
   className,
   onClick,
+  ref: externalRef,
   ...props
 }: PdfProps & Omit<CanvasHTMLAttributes<HTMLCanvasElement>, "onClick">) {
-  const ref = useRef<HTMLCanvasElement>(null);
+  const internalRef = useRef<HTMLCanvasElement>(null);
+  const last = useRef(Promise.resolve());
+  const ref = externalRef === undefined ? internalRef : externalRef;
 
   useEffect(() => {
-    if (!bytes || !ref.current) return;
+    if (!bytes || !ref?.current) return;
     let cancel = false;
     const copy = arrayBufferCopy(bytes);
     const render = async () => {
@@ -41,42 +51,48 @@ export function Pdf({
       canvas.width = viewport.width;
       canvas.height = viewport.height;
 
-      await page.render({
-        canvas,
-        canvasContext: context,
-        viewport,
-      }).promise;
+      last.current = last.current.then(async () => {
+        if (cancel) return;
+        try {
+          await page.render({
+            canvas,
+            canvasContext: context,
+            viewport,
+          }).promise;
+        } catch (e) {
+          console.error(e);
+        }
+      });
     };
 
     render();
     return () => {
       cancel = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bytes, scale]);
 
   return (
     <canvas
       ref={ref}
-      className={cn(
-        "border-input dark:bg-input/30 flex w-full rounded-md border bg-transparent px-3 py-2 shadow-xs transition-[color,box-shadow]",
-        className,
-      )}
+      className={cn("w-full h-full object-contain", className)}
       onClick={
         onClick
-          ? (e) => {
+          ? (event) => {
               const canvas = ref.current;
               if (!canvas) return;
-
               const rect = canvas.getBoundingClientRect();
-              const x = Math.round(
-                (canvas.width * (e.clientX - rect.left)) / rect.width / scale,
-              );
-              const y = Math.round(
-                (canvas.height -
-                  (canvas.height * (e.clientY - rect.top)) / rect.height) /
-                  scale,
-              );
-              onClick({ x, y });
+              const x = event.clientX - rect.left;
+              const y = event.clientY - rect.top;
+              const coords = toPdfCoords(canvas, rect, {
+                x,
+                y,
+                scale,
+              });
+
+              if (!coords) return;
+
+              onClick(coords);
             }
           : undefined
       }

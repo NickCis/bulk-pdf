@@ -1,23 +1,33 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { FileUp, X, Plus, Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Pdf } from "@/components/ui/pdf";
-import { pdfRender, rgb, type TextVariable } from "@/lib/pdf";
+import {
+  pdfRender,
+  rgb,
+  type TextVariable,
+  type DrawnVariable,
+} from "@/lib/pdf";
 
-import { Variable, type VariableObject } from "@/components/variable";
+import { Variable } from "@/components/variable";
 import { GenerateDialog } from "@/components/generate-dialog";
+import {
+  Placeholders,
+  type VariableObjectWithKey,
+} from "@/components/placeholders";
 
+// const PDFScale = 1.5;
 const PDFScale = 1.5;
 interface FileState {
   name?: string;
   current: ArrayBuffer | null;
+  drawn?: Record<string, DrawnVariable>;
   template: ArrayBuffer | null;
 }
 const DefaultFile: FileState = { template: null, current: null };
 
-type VariableObjectWithKey = VariableObject & { key: string | number };
 const DefaultVariable: VariableObjectWithKey = {
   key: "default",
   x: 0,
@@ -33,28 +43,45 @@ function App() {
   const [isClicking, setIsClicking] = useState<
     VariableObjectWithKey["key"] | null
   >(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
   useEffect(() => {
     if (!file.template) return;
     let cancel = false;
-    (async () => {
+    const timeout = setTimeout(async () => {
       if (!file.template) return;
-      const current = await pdfRender(
-        file.template,
-        (variables || []).reduce<TextVariable[]>((vs, v, i) => {
-          if (v.x && v.y && v.size) {
-            vs.push({
-              ...v,
-              text: `Variable ${i + 1}`,
-            });
-          }
-          return vs;
-        }, []),
-      );
+      const texts = (variables || []).reduce<
+        (TextVariable & { key: string })[]
+      >((vs, v, i) => {
+        if (v.x && v.y && v.size) {
+          vs.push({
+            ...v,
+            text: `Variable ${i + 1}`,
+            key: v.key,
+          });
+        }
+        return vs;
+      }, []);
+      const current = await pdfRender(file.template, texts);
       if (cancel) return;
-      setFile((f) => ({ ...f, current }));
-    })();
+      setFile((f) => ({
+        ...f,
+        current: current.document,
+        drawn: texts.reduce<Record<string, DrawnVariable>>((texts, text, i) => {
+          const drawn = current.variables[i];
+          if (drawn) {
+            const v = variables.find((v) => v.key === text.key);
+            if (v) {
+              texts[v.key] = drawn;
+            }
+          }
+          return texts;
+        }, {}),
+      }));
+    }, 250);
     return () => {
       cancel = true;
+      clearTimeout(timeout);
     };
   }, [file?.template, variables]);
 
@@ -75,7 +102,11 @@ function App() {
                 <X />
               </Button>
               {file.template ? (
-                <GenerateDialog variables={variables} template={file.template}>
+                <GenerateDialog
+                  variables={variables}
+                  template={file.template}
+                  name={file.name}
+                >
                   <Button variant="outline" size="sm" className="h-8">
                     <Package />
                     Generate
@@ -89,37 +120,67 @@ function App() {
 
       <main className="flex flex-1 overflow-hidden m-4 mr-0 space-x-4">
         <div className="flex-1">
-          {file?.current ? (
-            <Pdf
-              bytes={file.current}
-              className="h-full w-full"
-              scale={PDFScale}
-              onClick={
-                isClicking
-                  ? ({ x, y }) => {
-                      const key = isClicking;
-                      setVariables((variables) => {
-                        const vs = [...variables];
-                        for (let i = 0; i < vs.length; i++) {
-                          const v = vs[i];
-                          if (v.key === key) {
-                            vs[i] = {
-                              ...vs[i],
-                              x,
-                              y,
-                            };
-                          }
-                        }
+          <div className="w-full h-full border-input rounded-md border bg-transparent shadow-xs flex items-center justify-center relative">
+            {file?.current ? (
+              <>
+                {file.drawn ? (
+                  <Placeholders
+                    variables={variables}
+                    drawn={file.drawn}
+                    canvasRef={canvasRef}
+                    scale={PDFScale}
+                    onChange={(ev) => {
+                      setVariables((variables) =>
+                        variables.map((v) => {
+                          if (v.key !== ev.key) return v;
+                          if (ev.event === "move")
+                            return { ...v, x: ev.x, y: ev.y };
+                          return {
+                            ...v,
+                            x: ev.x,
+                            y: ev.y,
+                            w: ev.w,
+                            h: ev.h,
+                          };
+                        }),
+                      );
+                    }}
+                  />
+                ) : null}
+                <Pdf
+                  ref={canvasRef}
+                  bytes={file?.current}
+                  scale={PDFScale}
+                  onClick={
+                    isClicking
+                      ? ({ x, y }) => {
+                          x = parseFloat(x.toFixed(2));
+                          y = parseFloat(y.toFixed(2));
+                          const key = isClicking;
+                          setVariables((variables) => {
+                            const vs = [...variables];
+                            for (let i = 0; i < vs.length; i++) {
+                              const v = vs[i];
+                              if (v.key === key) {
+                                vs[i] = {
+                                  ...vs[i],
+                                  x,
+                                  y,
+                                };
+                                delete vs[i].w;
+                                delete vs[i].h;
+                              }
+                            }
 
-                        return vs;
-                      });
-                      setIsClicking(null);
-                    }
-                  : undefined
-              }
-            />
-          ) : (
-            <div className="w-full h-full p-4 border-input rounded-md border bg-transparent shadow-xs flex items-center justify-center">
+                            return vs;
+                          });
+                          setIsClicking(null);
+                        }
+                      : undefined
+                  }
+                />
+              </>
+            ) : (
               <div className="flex flex-col items-center space-y-2">
                 <FileUp />
                 <Input
@@ -139,8 +200,8 @@ function App() {
                   }}
                 />
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
         <div className="w-[250px] overflow-y-auto space-y-2 pr-4 pb-4">
           <div className="flex justify-between">
@@ -154,7 +215,7 @@ function App() {
                   const variables = [...v];
                   variables.push({
                     ...DefaultVariable,
-                    key: Math.round(Math.random() * 1000),
+                    key: `${Math.round(Math.random() * 1000)}`,
                   });
 
                   return variables;

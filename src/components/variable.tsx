@@ -8,7 +8,6 @@ import {
   Check,
   ChevronsUpDown,
   MousePointerClick,
-  Pipette,
   Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -45,7 +44,9 @@ import {
   ColorPickerHue,
   ColorPickerOutput,
   ColorPickerSelection,
+  ColorPickerEyeDropper,
 } from "@/components/ui/shadcn-io/color-picker";
+import { Checkbox } from "@/components/ui/checkbox";
 import { rgb, type TextVariable } from "@/lib/pdf";
 
 export type VariableObject = Omit<TextVariable, "text">;
@@ -265,8 +266,17 @@ export function Variable({
             </Popover>
           </div>
           <div className="grid gap-2">
-            <Label>Font Size</Label>
+            <div className="flex space-x-2 justify-between">
+              <Label>Font Size</Label>
+              <Checkbox
+                checked={!variable.contain}
+                onCheckedChange={(checked) =>
+                  onChange({ key: "contain", value: !checked })
+                }
+              />
+            </div>
             <Input
+              disabled={variable.contain}
               onChange={(ev) => {
                 const value = parseFloat(ev.target.value);
                 onChange({
@@ -274,9 +284,9 @@ export function Variable({
                   value: isNaN(value) ? 0 : value,
                 });
               }}
-              type="number"
+              type={variable.contain ? "text" : "number"}
               placeholder="Font Size"
-              value={variable.size || ""}
+              value={variable.contain ? "auto" : variable.size || ""}
             />
           </div>
           <div className="grid gap-2">
@@ -306,7 +316,6 @@ export function Variable({
                   ) : (
                     <span className="flex-1">Select Color...</span>
                   )}
-                  <Pipette className="opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent
@@ -326,6 +335,7 @@ export function Variable({
                 >
                   <ColorPickerSelection />
                   <div className="flex items-center gap-4">
+                    <ColorPickerEyeDropper />
                     <div className="grid w-full gap-1">
                       <ColorPickerHue />
                     </div>
