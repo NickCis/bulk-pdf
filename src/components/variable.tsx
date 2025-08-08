@@ -106,7 +106,7 @@ export function Variable({
   }, []);
 
   return (
-    <Card className={cn("w-full py-4 gap-2", className)}>
+    <Card className={cn("w-full py-4 gap-2", className)} data-tour="variable">
       <CardHeader className="px-2">
         <CardTitle>Variable {index}</CardTitle>
         <CardAction>
@@ -122,7 +122,7 @@ export function Variable({
       </CardHeader>
       <CardContent className="px-2">
         <div className="flex flex-col gap-6">
-          <div className="grid gap-2">
+          <div className="grid gap-2" data-tour="variable-align">
             <Label>Align</Label>
             <div className="flex justify-center">
               <div className="bg-muted text-muted-foreground inline-flex w-fit items-center justify-center rounded-lg p-[3px]">
@@ -155,7 +155,7 @@ export function Variable({
               </div>
             </div>
           </div>
-          <div className="grid gap-2">
+          <div className="grid gap-2" data-tour="variable-position">
             <div className="flex space-x-2 justify-between">
               <Label>Position</Label>
               <HoverCard>
@@ -165,6 +165,7 @@ export function Variable({
                     variant="ghost"
                     className="size-8"
                     onClick={onPosition}
+                    data-tour="variable-position-button"
                   >
                     <MousePointerClick />
                   </Button>
@@ -206,7 +207,7 @@ export function Variable({
               />
             </div>
           </div>
-          <div className="grid gap-2">
+          <div className="grid gap-2" data-tour="variable-fontface">
             <div className="flex space-x-2 justify-between">
               <Label>Font Face</Label>
               <Button size="icon" variant="ghost" className="size-8" asChild>
@@ -265,10 +266,11 @@ export function Variable({
               </PopoverContent>
             </Popover>
           </div>
-          <div className="grid gap-2">
+          <div className="grid gap-2" data-tour="variable-fontsize">
             <div className="flex space-x-2 justify-between">
               <Label>Font Size</Label>
               <Checkbox
+                data-tour="variable-fontsize-auto"
                 checked={!variable.contain}
                 onCheckedChange={(checked) =>
                   onChange({ key: "contain", value: !checked })
@@ -289,7 +291,7 @@ export function Variable({
               value={variable.contain ? "auto" : variable.size || ""}
             />
           </div>
-          <div className="grid gap-2">
+          <div className="grid gap-2" data-tour="variable-fontcolor">
             <Label>Font Color</Label>
             <Popover
               open={open === "font-color"}

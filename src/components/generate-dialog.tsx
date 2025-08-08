@@ -102,7 +102,7 @@ function Content({ variables, template, name }: ContentProps) {
           <DialogTitle>Generate PDFs</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col space-y-4 overflow-auto -mx-4 px-4 py-2 flex-1">
-          <div className="grid gap-3">
+          <div className="grid gap-3" data-tour="generate-filename">
             <Label>File Name</Label>
             <Input
               disabled={formik.isSubmitting}
@@ -111,7 +111,10 @@ function Content({ variables, template, name }: ContentProps) {
               value={formik.values.filename}
             />
           </div>
-          <div className="flex flex-col space-y-3 flex-1">
+          <div
+            className="flex flex-col space-y-3 flex-1"
+            data-tour="generate-data"
+          >
             <Label>Data</Label>
             <Textarea
               disabled={formik.isSubmitting}
@@ -123,7 +126,11 @@ function Content({ variables, template, name }: ContentProps) {
           </div>
         </div>
         <DialogFooter>
-          <Button type="submit" disabled={formik.isSubmitting}>
+          <Button
+            type="submit"
+            disabled={formik.isSubmitting}
+            data-tour="generate-button"
+          >
             {formik.isSubmitting ? (
               <>
                 <Loader2Icon className="animate-spin" />
@@ -146,7 +153,7 @@ export function GenerateDialog({
   name,
 }: PropsWithChildren<ContentProps>) {
   return (
-    <Dialog>
+    <Dialog modal={false}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <Content variables={variables} template={template} name={name} />
     </Dialog>

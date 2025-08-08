@@ -172,6 +172,7 @@ function Placeholder({ left, top, width, height, onChange }: PlaceholderProps) {
 
   return (
     <div
+      data-tour="placeholder"
       onMouseDown={makeMouseDown("move")}
       className={cn(
         "absolute bg-blue-500/50 cursor-grab rounded-xs shadow-md select-none group",
