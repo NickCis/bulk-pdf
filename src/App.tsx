@@ -241,14 +241,20 @@ const GenerateSteps = [
   {
     selector: '[data-tour="generate-filename"]',
     content: (
-      <p className="text-sm">
-        In the <span className="font-bold">File Name</span> field, you can set a
-        name for your generated PDFs. You can use placeholders like{" "}
-        <Badge>&#123;index&#125;</Badge> to number each file, or even use your
-        variables! For example, if you set the name to{" "}
-        <Badge>&#123;variable-1&#125;-certificate.pdf</Badge>, your files might
-        be named "John Doe-certificate.pdf" and "Jane Smith-certificate.pdf".
-      </p>
+      <>
+        <p className="text-sm">
+          In the <span className="font-bold">File Name</span> field, you can set
+          a name for your generated PDFs. You can use placeholders like{" "}
+          <Badge>&#123;index&#125;</Badge> to number each file, or even use your
+          variables!
+        </p>
+        <p className="text-sm">
+          For example, if you set the name to{" "}
+          <Badge>&#123;variable-1&#125;-certificate.pdf</Badge>, your files
+          might be named "John Doe-certificate.pdf" and "Jane
+          Smith-certificate.pdf".
+        </p>
+      </>
     ),
     position: "s" as const,
   },
@@ -309,7 +315,7 @@ function App() {
     VariableObjectWithKey["key"] | null
   >(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const hasAlreadyOpenedGenerateDialogRef = useRef(false);
+  const hasAlreadyShownRef = useRef<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!file.template) return;
@@ -405,8 +411,8 @@ function App() {
                       className="h-8"
                       data-tour="button-generate"
                       onClick={() => {
-                        if (!hasAlreadyOpenedGenerateDialogRef.current) {
-                          // hasAlreadyOpenedGenerateDialogRef.current = true;
+                        if (!hasAlreadyShownRef.current["generate"]) {
+                          hasAlreadyShownRef.current["generate"] = true;
                           setTour("generate");
                         }
                       }}
@@ -478,14 +484,17 @@ function App() {
                               return vs;
                             });
                             setIsClicking(null);
-                            const placedVariables = variables.filter(
-                              (v) => v.x || v.y,
-                            );
+                            if (!hasAlreadyShownRef.current["placeholder"]) {
+                              hasAlreadyShownRef.current["placeholder"] = true;
+                              const placedVariables = variables.filter(
+                                (v) => v.x || v.y,
+                              );
 
-                            if (placedVariables.length === 0) {
-                              waitForSelector(PlaceholderSteps[0].selector)
-                                .then(() => setTour("placeholder"))
-                                .catch(console.warn);
+                              if (placedVariables.length === 0) {
+                                waitForSelector(PlaceholderSteps[0].selector)
+                                  .then(() => setTour("placeholder"))
+                                  .catch(console.warn);
+                              }
                             }
                           }
                         : undefined
@@ -512,7 +521,11 @@ function App() {
                         template: bytes,
                         current: bytes,
                       });
-                      setTour("add-variable");
+
+                      if (!hasAlreadyShownRef.current["add-variable"]) {
+                        hasAlreadyShownRef.current["add-variable"] = true;
+                        setTour("add-variable");
+                      }
                     }}
                   />
                 </label>
@@ -541,7 +554,10 @@ function App() {
                     return variables;
                   });
 
-                  if (variables.length === 0) setTour("variable");
+                  if (!hasAlreadyShownRef.current["variable"]) {
+                    hasAlreadyShownRef.current["variable"] = true;
+                    if (variables.length === 0) setTour("variable");
+                  }
                 }}
               >
                 <Plus />
@@ -565,6 +581,29 @@ function App() {
                           ...vs[i],
                           [ev.key]: ev.value,
                         };
+
+                        if (ev.key === "alignment") {
+                          const width = vs[i].w || file.drawn?.[v.key]?.w;
+                          if (width) {
+                            const prevAlignment =
+                              variables[i].alignment || "left";
+                            const prevX =
+                              vs[i].x +
+                              (prevAlignment === "right"
+                                ? width
+                                : prevAlignment === "center"
+                                  ? width / 2
+                                  : 0);
+                            const x =
+                              vs[i].x +
+                              (vs[i].alignment === "right"
+                                ? width
+                                : vs[i].alignment === "center"
+                                  ? width / 2
+                                  : 0);
+                            vs[i].x = vs[i].x - prevX + x;
+                          }
+                        }
                       }
                     }
                     return vs;
